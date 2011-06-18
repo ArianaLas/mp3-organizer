@@ -3,6 +3,31 @@ MP3 Organizer
 
 Automatically organize, sort or rename your mp3 music collection
 
+Requirements
+============
+
+* Python 3
+* stagger (http://code.google.com/p/stagger/)
+
+In Arch Linux just type:
+
+	# pacman -Sy python
+	$ yaourt -S python3-stagger-svn
+
+If you don't use yaourt wrapper, download *PKGBUILD* for package *python3-stagger-svn* from AUR and run:
+	
+	$ makepkg
+
+Then, install it with *pacman -U*.
+
+Instalation
+===========
+
+Just move mp3-organizer.py to any directory from yout PATH eg.:
+
+	# mv mp3-organizer.py /usr/bin/mp3-organizer
+	# chmod +x /usr/bin/mp3-organizer
+
 Examples
 ========
 
@@ -18,8 +43,8 @@ License
 =======
 
 Copyright (C)
--> Patryk Jaworski <skorpion9312@gmail.com>
--> Ariana Las <ariana.las@gmail.com>
+* Patryk Jaworski <skorpion9312@gmail.com>
+* Ariana Las <ariana.las@gmail.com>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -38,8 +63,8 @@ License - PL
 ============
 
 Copyright (C)
--> Patryk Jaworski <skorpion9312@gmail.com>
--> Ariana Las <ariana.las@gmail.com>
+* Patryk Jaworski <skorpion9312@gmail.com>
+* Ariana Las <ariana.las@gmail.com>
 
 Niniejszy program jest wolnym oprogramowaniem - możesz go rozpowszechniać dalej
 i/lub modyfikować na warunkach Powszechnej Licencji Publicznej GNU wydanej przez
