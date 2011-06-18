@@ -25,12 +25,13 @@ class organizer:
 	__recursive = False;
 	__copy = False;
 	__delete = False;
+	__follow = False;
 	__force = False;
 	__scheme = '{artist}/{album}/{title}';
 	__recognizeCovers = False;
 	def __init__(self):
 		try:
-			options, args = getopt.getopt(sys.argv[1:], 'p:rdft:chvs:', ['path=', 'target-directory=', 'scheme=', 'delete', 'force', 'recursive', 'verbose', 'copy', 'help', 'recognize-covers']);
+			options, args = getopt.getopt(sys.argv[1:], 'p:rdft:chvs:', ['path=', 'target-directory=', 'scheme=', 'delete', 'force', 'recursive', 'verbose', 'copy', 'help', 'recognize-covers', 'follow']);
 			for option, value in options:
 				if option in ('-h', '--help'):
 					self.usage();
@@ -65,8 +66,11 @@ class organizer:
 				elif option == '--recognize-covers':
 					self.__v('Setting option recognize-covers...');
 					self.__recognizeCovers = True;
+				elif option == '--follow':
+					self.__follow = True;
 				else:
 					self.__v('Setting default scheme...');
+
 
 		except getopt.GetoptError as err:
 			print('[E] Bad options...');
@@ -97,6 +101,7 @@ class organizer:
 		print('   -h --help\n      display help');
 		print('   -v --verbose\n      enable verbose messages (should be first option)');
 		print('   --recognize-covers\n      move/copy all image files');
+		print('   --follow\n      follow symlinks');
 		print('\nExamples:\n   $ mp3-organizer -p ~/Music/ -t ~/Music/ -r --recognize-covers');
 		print('      Organize ~/Music/ directory (do not remove old directories even empty)');
 		print('\n   $ mp3-organizer -p ~/ -t ~/Music/ -r -d');
@@ -127,10 +132,17 @@ class organizer:
 			print('[V] %s' % text);
 	
 	def __organize(self, path):
-		files = os.listdir(path);
+		try:
+			files = os.listdir(path);
+		except OSError:
+			print('[W] Cannot list directory %s...' % path);
+			return;
 		covers = [];
 		lastTag = None;
 		for f in files:
+			if os.path.islink(path + f) and not self.__follow:
+				self.__v('Skipping link %s...' % path + f);
+				continue;
 			if os.path.isdir(path + f) and self.__recursive:
 				self.__organize(path + f + '/');
 			if f[-4:].lower() == '.mp3':
@@ -138,7 +150,6 @@ class organizer:
 				self.__moveTrack(path + f, lastTag);
 			if self.__recognizeCovers:
 				if f[f.rfind('.'):].lower() in ('.jpg', '.gif', '.png', '.bmp', '.jpeg'):
-					self.__v('Found cover %s...' % f);
 					covers.append(path + f);
 		if lastTag != None and len(covers) != 0:
 			self.__moveCovers(lastTag, covers);
@@ -159,6 +170,7 @@ class organizer:
 		outputDir = self.__target + os.path.dirname(self.__scheme.format(**tags));
 		i = 1;
 		for c in covers:
+			self.__v('Found cover %s...' % c);
 			ext = c[c.rfind('.'):];
 			output = outputDir + '/cover' + ext;
 			if c != output:
