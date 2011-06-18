@@ -12,6 +12,7 @@ import sys;
 import getopt;
 import os;
 import shutil;
+import platform;
 try:
 	import stagger;
 except:
@@ -19,6 +20,7 @@ except:
 	sys.exit(1);
 
 class organizer:
+	__sep = '/';
 	__path = '';
 	__target = '';
 	__verbose = False;
@@ -27,9 +29,12 @@ class organizer:
 	__delete = False;
 	__follow = False;
 	__force = False;
-	__scheme = '{artist}/{album}/{title}';
+	__scheme = '{title}';
 	__recognizeCovers = False;
 	def __init__(self):
+		if platform.system().lower() == 'windows':
+			self.__sep = "\\";
+		self.__scheme = '{artist}%s{album}%s{title}' % (self.__sep, self.__sep);
 		try:
 			options, args = getopt.getopt(sys.argv[1:], 'p:rdft:chvs:', ['path=', 'target-directory=', 'scheme=', 'delete', 'force', 'recursive', 'verbose', 'copy', 'help', 'recognize-covers', 'follow']);
 			for option, value in options:
@@ -37,13 +42,13 @@ class organizer:
 					self.usage();
 					sys.exit(0);
 				elif option in ('-p', '--path'):
-					if value[-1] != '/':
-						value += '/';
+					if value[-1] != self.__sep:
+						value += self.__sep;
 					self.__v('Setting path as %s...' % value);
 					self.__path = value;
 				elif option in ('-t', '--target-directory'):
-					if value[-1] != '/':
-						value += '/';
+					if value[-1] != self.__sep:
+						value += self.__sep;
 					self.__v('Setting target as %s...' % value);
 					self.__target = value;
 				elif option in ('-f', '--force'):
@@ -144,7 +149,7 @@ class organizer:
 				self.__v('Skipping link %s...' % path + f);
 				continue;
 			if os.path.isdir(path + f) and self.__recursive:
-				self.__organize(path + f + '/');
+				self.__organize(path + f + self.__sep);
 			if f[-4:].lower() == '.mp3':
 				lastTag = self.__getTag(path + f);
 				self.__moveTrack(path + f, lastTag);
@@ -220,7 +225,7 @@ class organizer:
 		name = os.path.basename(output[0:output.rfind('.')]);
 		if track != output:
 			while os.path.exists(output):
-				output = outputDir + '/' + name + '-' + str(i) + ext;
+				output = outputDir + self.__sep + name + '-' + str(i) + ext;
 				i += 1;
 			if self.__copy:
 				self.__v('Copying %s -> %s' % (track, output));
