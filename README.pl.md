@@ -46,11 +46,11 @@ Skopiuj (opcja -c) wszystkie pliki MP3 z katalogu *~/Music/Iron Maiden/* do kata
 
 Przykładowy plik:
 
-	~/Music/Iron Maiden/When-the-Wild-Wind-Blows.mp3
+> ~/Music/Iron Maiden/When-the-Wild-Wind-Blows.mp3
 
 Zostanie skopiowany do:
 
-	/media/TELEFON/Muzyka/*Iron Maiden-The Final Frontier/10-When the Wild Wind Blows.mp3*
+> /media/TELEFON/Muzyka/**Iron Maiden-The Final Frontier/10-When the Wild Wind Blows.mp3**
 
 Podrubiona część powstała w wyniku zstosowania schematu (opcja --scheme).
 
