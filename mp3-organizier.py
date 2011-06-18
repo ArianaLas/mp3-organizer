@@ -16,6 +16,7 @@ try:
 	import stagger;
 except:
 	print('[E] Unable to load module stagger, please install it (package: aur/python3-stagger-svn in Arch Linux.');
+	sys.exit(1);
 
 class organizer:
 	__path = '';
