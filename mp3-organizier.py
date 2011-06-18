@@ -232,4 +232,8 @@ class organizer:
 			self.__v('Skipping %s...' % track)
 
 if __name__ == "__main__":
-	organizer();
+	try:
+		organizer();
+	except KeyboardInterrupt:
+		print("[I] Aborting...");
+		sys.exit(3);
