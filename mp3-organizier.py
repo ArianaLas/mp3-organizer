@@ -173,14 +173,16 @@ class organizer:
 	
 	def __moveCovers(self, tags, covers):
 		outputDir = self.__target + os.path.dirname(self.__scheme.format(**tags));
+		if outputDir[-1] != '/':
+			outputDir += '/';
 		i = 1;
 		for c in covers:
 			self.__v('Found cover %s...' % c);
 			ext = c[c.rfind('.'):];
-			output = outputDir + '/cover' + ext;
+			output = outputDir + 'cover' + ext;
 			if c != output:
 				while os.path.exists(output):
-					output = outputDir + '/cover-' + str(i) + ext;
+					output = outputDir + 'cover-' + str(i) + ext;
 					i += 1;
 				if self.__copy:
 					self.__v('Copying cover %s -> %s' % (c, output));
