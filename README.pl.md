@@ -28,6 +28,21 @@ Po prostu przenieś *mp3-organizer.py* do dowolnego katalogu z PATH np.:
 	# mv mp3-organizer.py /usr/bin/mp3-organizer
 	# chmod +x /usr/bin/mp3-organizer # (nadaj prawa uruchomienia)
 
+Opis opcji
+==========
+
+* **-t** lub **--target-directory** - sprecyzuj gdzie przenosić/kopiować napotkane pliki MP3
+* **-p** lub **--path** - sprecyzuj gdzie szukać plików MP3
+* **-d** lub **--delete** - próbuj usuwać przejrzane katalogi po przeniesieniu/skopiowaniu muzyki (tylko jeżeli puste)
+* **-f** lub **--force** - agresywnie usuwaj przejrzane katalogi (nawet jeżeli zawierają inne pliki)
+* **-r** lub **--recursive** - rekurencyjnie przeglądaj katalogi (szukaj również w katagach katalogów itd.)
+* **-c** lub **--copy** - kopiuj zamiast przenosić
+* **-s** lub **--scheme** - sprecyzuj schemat działania; *domyślnie*: **{artist}/{album}/{title}**; *dostępne*: {artist} {album} {date} {title} {old-file-name} {genre} {track}
+* **-h** lub **--help** - wyświetl pomoc
+* **-v** lub **--verbose** - wypisuj dokładnie co robisz
+* **--recognize-covers** - próbuj wykrywać okładki (przenoś również obrazki)
+* **--follow** - podążaj również za dowiązaniami (linkami/skrótami)
+
 Przykłady
 =========
 
@@ -57,6 +72,107 @@ Podrubiona część powstała w wyniku zstosowania schematu (opcja --scheme).
 Domyślnym schematem programu jest:
 	
 	{artist}/{album}/{title}
+
+Więcej przykładów
+=================
+
+Aktualny stan katalogu:
+
+	$ tree
+	.
+	└── Muzyka
+	    ├── image.jpg
+	    ├── test-1.mp3
+	    ├── test-2.mp3
+	    ├── test-3.mp3
+	    ├── test-4.mp3
+	    ├── test-5.mp3
+	    ├── test-6.mp3
+	    ├── test-7.mp3
+	    ├── test-8.mp3
+	    ├── test-9.mp3
+	    └── test.mp3
+	 1 directory, 11 files
+
+Cel: **Posortowanie plików MP3 w katalogu Muzyka wg wzorca: wykonawca/tytul**
+
+Realizacj za pomocą **mp3-organizer**:
+
+	$ mp3-organizer -v -p Muzyka/ -t Muzyka/ --recognize-covers --scheme {artist}/{title}
+
+Standardowe wyjście:
+
+	[V] Setting path as Muzyka/...
+	[V] Setting target as Muzyka/...
+	[V] Setting option recognize-covers...
+	[V] Setting scheme: {artist}/{title}...
+	[V] Preparing directories...
+	[V] Checking path...
+	[V] Checking target...
+	[V] Checking access in target directory...
+	[V] Creating output directories...
+	[V] Moving Muzyka/test-9.mp3 -> Muzyka/Iron Maiden/The Wicker Man.mp3
+	[V] Moving Muzyka/test-8.mp3 -> Muzyka/Iron Maiden/Ghost of the Navigator.mp3
+	[V] Moving Muzyka/test-7.mp3 -> Muzyka/Iron Maiden/Brave New World.mp3
+	[V] Moving Muzyka/test-6.mp3 -> Muzyka/Iron Maiden/Blood Brothers.mp3
+	[V] Moving Muzyka/test-5.mp3 -> Muzyka/Iron Maiden/The Mercenary.mp3
+	[V] Moving Muzyka/test-4.mp3 -> Muzyka/Iron Maiden/Dream of Mirrors.mp3
+	[V] Moving Muzyka/test-3.mp3 -> Muzyka/Iron Maiden/The Fallen Angel.mp3
+	[V] Moving Muzyka/test-2.mp3 -> Muzyka/Iron Maiden/The Nomad.mp3
+	[V] Moving Muzyka/test-1.mp3 -> Muzyka/Iron Maiden/Out of The Silent Planet.mp3
+	[V] Moving Muzyka/test.mp3 -> Muzyka/Iron Maiden/The Thin Line Between Love and.mp3
+	[V] Found cover Muzyka/image.jpg...
+	[V] Moving cover Muzyka/image.jpg -> Muzyka/Iron Maiden/cover.jpg
+
+Stan katalogu:
+
+	$ tree
+	.
+	└── Muzyka
+		└── Iron Maiden
+			├── Blood Brothers.mp3
+			├── Brave New World.mp3
+			├── cover.jpg
+			├── Dream of Mirrors.mp3
+			├── Ghost of the Navigator.mp3
+			├── Out of The Silent Planet.mp3
+			├── The Fallen Angel.mp3
+			├── The Mercenary.mp3
+			├── The Nomad.mp3
+			├── The Thin Line Between Love and.mp3
+			└── The Wicker Man.mp3
+	2 directories, 11 files
+
+Po jakimś czasie zmieniamy zdanie, chcemy by cała nasza kolekcja była w postaci: **rok-wydania-plyty/artysta/album/tytuł**. Z **mp3-organizer** to żaden problem. Wystarczy:
+
+	$ mp3-organizer -v -d -r -p Muzyka/ -t Muzyka/ --recognize-covers --scheme {date}/{artist}/{album}/{title}
+
+Zostały zostosowane dodatkowe opcje: **-d**, **-r**. Ich opis znajduje się wyżej.
+
+Po wykonaniu powyższego polecenia nasz katalog wygląda tak:
+
+	$ tree
+	.
+	└── Muzyka
+		└── 2000
+			└── Iron Maiden
+				└── Brave New World
+					├── Blood Brothers.mp3
+					├── Brave New World.mp3
+					├── cover.jpg
+					├── Dream of Mirrors.mp3
+					├── Ghost of the Navigator.mp3
+					├── Out of The Silent Planet.mp3
+					├── The Fallen Angel.mp3
+					├── The Mercenary.mp3
+					├── The Nomad.mp3
+					├── The Thin Line Between Love and.mp3
+					└── The Wicker Man.mp3
+	4 directories, 11 files
+
+Oczywiście jeżeli chcemy przywrócić kolekcję do stanu pierwotnego - nie ma problemu:
+
+	$ mp3-organizer -v -d -r -p Muzyka/ -t Muzyka/ --scheme test --recognize-covers	
 
 License
 =======
