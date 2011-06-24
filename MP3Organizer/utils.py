@@ -112,6 +112,8 @@ def prepare(path, target):
 	"""
 	Prepare input/output directories
 	"""
+	if not path or not target:
+		raise Exception('Please specify search and target directories!');
 	verbose('Preparing directories...');
 	verbose('Checking path...');
 	if not os.path.exists(path):
@@ -128,3 +130,6 @@ def prepare(path, target):
 	verbose('Checking access in target directory...');
 	if not os.access(target, os.W_OK):
 		raise Exception('Target directory is not writable!');
+
+def getHomeDir():
+	return os.path.expanduser('~');
