@@ -20,14 +20,6 @@ Jeżeli nie korzystasz z Yaourta, pobierz *PKGBUILD* dla paczki *python3-stagger
 
 Następnie pakiet ten zainstaluj korzystająć z  *pacman -U*.
 
-Instalacja
-==========
-
-Po prostu przenieś *mp3-organizer.py* do dowolnego katalogu z PATH np.:
-
-	# mv mp3-organizer.py /usr/bin/mp3-organizer
-	# chmod +x /usr/bin/mp3-organizer # (nadaj prawa uruchomienia)
-
 Opis opcji
 ==========
 

@@ -20,14 +20,6 @@ If you don't use yaourt wrapper, download *PKGBUILD* for package *python3-stagge
 
 Then, install it with *pacman -U*.
 
-Instalation
-===========
-
-Just move mp3-organizer.py to any directory from yout PATH eg.:
-
-	# mv mp3-organizer.py /usr/bin/mp3-organizer
-	# chmod +x /usr/bin/mp3-organizer
-
 Examples
 ========
 
