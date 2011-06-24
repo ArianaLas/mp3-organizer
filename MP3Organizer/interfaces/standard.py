@@ -108,10 +108,11 @@ class Organizer(interface.Interface):
 		lastTag = None;
 		for f in files:
 			if os.path.islink(path + f) and not self.__follow:
-				self.v('Skipping link %s...' % path + f);
+				self.v('Skipping link %s...' % (path + f));
 				continue;
 			if os.path.isdir(path + f) and self.__recursive:
 				self.__organize(path + f + utils.DIR_SEPARATOR);
+				continue;
 			if f[-4:].lower() == '.mp3':
 				lastTag = utils.getTag(path + f);
 				if utils.moveTrack(path + f, lastTag, self.__target, self.__scheme, self.__copy):
@@ -129,7 +130,6 @@ class Organizer(interface.Interface):
 				utils.verbose('Removing %s' % path);
 				os.rmdir(path);
 			except Exception as err:
-				print("[D] %s" % err);
 				utils.verbose('I can\'t remove  %s' % path);
 				try:
 					if self.__force:

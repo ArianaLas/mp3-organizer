@@ -54,7 +54,7 @@ def verbose(message):
 	if ENABLE_VERBOSE:
 		print('[V] %s' % message);
 
-def getTag(track):
+def getTag(track, returnNone = False):
 	"""
 	Get ID3 tags from track
 	"""
@@ -70,14 +70,20 @@ def getTag(track):
 		'old-file-name':oldName[0:oldName.rfind('.')]};
 	except stagger.errors.NoTagError:
 		print('[W] Track %s has no ID3 tags...' % track);
-		tags = {'artist':'Unknown artist', 
-		'album':'Unknown album', 
-		'date':'XXXX', 
-		'title':'Unknown title', 
-		'genre':'Unknown genre', 
-		'track':'XX',
-		'old-file-name':oldName[0:oldName.rfind('.')]};
+		if returnNone:
+			return None;
+		tags = getDefaultTag();
 	return tags;
+
+def getDefaultTag(track):
+	oldName = os.path.basename(track);
+	return {'artist':'Unknown artist', 
+	'album':'Unknown album', 
+	'date':'XXXX', 
+	'title':'Unknown title', 
+	'genre':'Unknown genre', 
+	'track':'XX',
+	'old-file-name':oldName[0:oldName.rfind('.')]};
 
 def moveTrack(track, tags, target, scheme, copy=False):
 	"""

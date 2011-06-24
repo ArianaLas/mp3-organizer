@@ -1,9 +1,11 @@
 from PyQt4 import QtGui, QtCore;
 from . import interface;
 from .. import utils as utils;
+import os;
 import sys;
 import platform;
 import time;
+import random;
 from collections import deque;
 
 #
@@ -28,9 +30,9 @@ class Organizer(QtGui.QMainWindow, interface.Interface):
 	__recognizeCovers = None;
 	__numOk = 0;
 	__numSkipped = 0;
+	__numDeleted = 0;
+	__numUntagged = 0
 	__files = [];
-	__filesN = 0;
-	__dirs = [];
 
 	def __init__(self, args):
 		self.__app = QtGui.QApplication(args);
@@ -43,6 +45,7 @@ class Organizer(QtGui.QMainWindow, interface.Interface):
 		self.show();
 		sys.exit(self.__app.exec_());
 
+	# TODO: Add icons...
 	def __initUI(self):
 		utils.verbose('Initializing UI...');
 		self.setWindowTitle('MP3 Organizer');
@@ -77,6 +80,7 @@ class Organizer(QtGui.QMainWindow, interface.Interface):
 		topGrid = QtGui.QGridLayout();
 		bottomGrid = QtGui.QGridLayout();
 		self.__path = QtGui.QLineEdit();
+		self.__path.setText(utils.getHomeDir());
 		self.__target = QtGui.QLineEdit();
 		self.__scheme = QtGui.QLineEdit();
 		self.__scheme.setToolTip('Available blocks: {artist} {album} {date} {title} {old-file-name} {genre} {track}');
@@ -143,29 +147,120 @@ class Organizer(QtGui.QMainWindow, interface.Interface):
 	def __clean(self):
 		self.__numOk = 0;
 		self.__numSkipped = 0;
+		self.__numDeleted = 0;
+		self.__numUntagged = 0
 		self.__files = [];
-		self.__filesN = 0;
-		self.__dirs = [];
-
+	
+	# TODO: Remove debug messages
+	# TODO: Fix #1
 	def __startOrganize(self):
 		self.__clean();
 		try:
 			utils.prepare(self.__path.text(), self.__target.text());
+			if self.__path.text()[-1] != utils.DIR_SEPARATOR:
+				self.__path.insert(utils.DIR_SEPARATOR);
+			if self.__target.text()[-1] != utils.DIR_SEPARATOR:
+				self.__target.insert(utils.DIR_SEPARATOR);
 		except Exception as e:
 			self.__critical(str(e));
-		return False;
+			return False;
 		utils.verbose('Staring hardcore organizing action!');
-		progress = QtGui.QProgressDialog('Initializing...', 'Cancel', 0, 99999, self);
+		progress = QtGui.QProgressDialog('Initializing...', 'Cancel', 0, 100, self);
+		progress.setMinimumDuration(1);
+		progress.setAutoClose(False);
+		progress.setAutoReset(False);
+		progress.forceShow();
 		progress.open();
+		progress.setValue(1);
 		queue = deque([self.__path.text()]);
-		# TODO: Prepare files, start moving/copying
-				
-	
+		try:	
+			while len(queue) != 0:
+				print("Queue: %s" % queue);
+				if progress.wasCanceled():
+					raise KeyboardInterrupt('Canceled');
+				path = queue.popleft();
+				print("Path: %s" % path);
+				try:
+					files = os.listdir(path);
+					if len(files) == 0:
+						utils.verbose('Skipping empty directory %s' % path);
+						continue;
+				except OSError:
+					utils.verbose('Unable to list directory %s' % path);
+					continue;
+				lastTag = None;
+				for f in files:
+					if progress.wasCanceled():
+						raise KeyboardInterrupt('Canceled');
+					if os.path.islink(path + f) and not self.__follow.isChecked():
+						utils.verbose('Skipping link %s...' % (path + f))
+						continue;
+					if os.path.isdir(path + f) and self.__recursive.isChecked():
+						queue.append(path + f + utils.DIR_SEPARATOR);
+						continue;
+					if f[-4:].lower() == '.mp3':
+						print('Adding %s' % (path + f));
+						self.__files.append(path + f);
+						progress.setLabelText('Preparing files (%d)' % len(self.__files));
+						newMax = 0.9 if random.choice((0,1,2)) == 1 else 0.7;
+						if len(self.__files) > progress.maximum() * newMax:
+							progress.setMaximum(int(len(self.__files)) * 2);
+						progress.setValue(len(self.__files));
+		except KeyboardInterrupt:
+			return False;
+		utils.verbose("Got %d files..." % len(self.__files));
+		print(self.__files);
+		progress.setMaximum(len(self.__files));
+		progress.setValue(0);
+		progress.setLabelText("Organizing files...");
+		try:
+			prevDir = None;
+			for F in self.__files:
+				D = os.path.dirname(F);
+				# FIXME 1: Remove fails...
+				if prevDir != None:
+					if D != prevDir and __self.__delete.isChecked() and D != self.__path.text():
+						try:
+							utils.verbose('Removing %s' % D);
+							os.rmdir(D);
+						except Exception as err:
+							utils.verbose('I can\'t remove  %s' % D);
+							try:
+								if self.__force.isChecked():
+									utils.v('Force removing %s' % D);
+									os.rmdirs(D);
+								else:
+									raise Exception();
+							except:
+								print('[W] Unable to remove directory %s...' % path);
+						self.__numDeleted += 1;
+				tag = utils.getTag(F);
+				if not tag:
+					self.__numUntagged += 1;
+					tag = utils.getDefaultTag(F);
+				if utils.moveTrack(F, tag, self.__target.text(), self.__scheme.text(), self.__copy.isChecked()):
+					self.__numOk += 1;
+				else:
+					self.__numSkipped += 1;
+
+				progress.setValue(progress.value() + 1);
+				# TODO: Change label...
+				progress.setLabelText('%s: %d; Skipped: %s; Removed: %d; Untagged: %d' % (('Copied' if self.__copy.isChecked() else 'Moved'), self.__numOk, self.__numSkipped, self.__numDeleted, self.__numUntagged));
+		except KeyboardInterrupt:
+			self.__summary();
+			return False;
+		progress.setCancelButtonText('Ok');
+		self.__summary();
+		return True;
+
+	def __summary(self):
+		pass;
+
 	def __critical(self, msg):
-		QtGui.QMessageBox.critical(self, 'MP3 Organizer :: critical error', msg, QtGui.QMessageBox.Ok);
+		QtGui.QMessageBox.critical(self, 'MP3 Organizer :: Critical error', msg, QtGui.QMessageBox.Ok);
 
 	def __about(self):
-		QtGui.QMessageBox.about(self, "About MP3 Organizer",
+		QtGui.QMessageBox.about(self, "MP3 Organizer :: About",
 		"""<b>MP3 Organizer</b> v{0}
 		<p>Copyright &copy; by Patryk Jaworski &lt;skorpion9312@gmail.com&gt;</p>
 		<p>Automatically organize your MP3 music collection</p>
