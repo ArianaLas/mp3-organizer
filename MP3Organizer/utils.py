@@ -85,6 +85,7 @@ def getDefaultTag(track):
 	'track':'XX',
 	'old-file-name':oldName[0:oldName.rfind('.')]};
 
+# TODO: tags needs normalize (strip/replace special chars);
 def moveTrack(track, tags, target, scheme, copy=False):
 	"""
 	Move track to target using scheme

@@ -24,6 +24,7 @@ class Organizer(QtGui.QMainWindow, interface.Interface):
 	__recursive = None;
 	__copy = None;
 	__delete = None;
+	__deleteEmpty = None;
 	__follow = None;
 	__force = None;
 	__scheme = None;
@@ -31,6 +32,7 @@ class Organizer(QtGui.QMainWindow, interface.Interface):
 	__numOk = 0;
 	__numSkipped = 0;
 	__numDeleted = 0;
+	__toRemove = [];
 	__numUntagged = 0
 	__files = [];
 
@@ -45,6 +47,7 @@ class Organizer(QtGui.QMainWindow, interface.Interface):
 		self.show();
 		sys.exit(self.__app.exec_());
 
+	# TODO: Add 'detect duplicates option'
 	def __initUI(self):
 		utils.verbose('Initializing UI...');
 		self.setWindowTitle('MP3 Organizer');
@@ -99,6 +102,8 @@ class Organizer(QtGui.QMainWindow, interface.Interface):
 		self.__recursive.setStatusTip('Enable recursive mode');
 		self.__delete = QtGui.QCheckBox('Delete mode');
 		self.__delete.setStatusTip('Delete filtered directories');
+		self.__deleteEmpty = QtGui.QCheckBox('Clean directories');
+		self.__deleteEmpty.setStatusTip('Remove all empty directories');
 		self.__force = QtGui.QCheckBox('Force');
 		self.__force.setStatusTip('Force delete filtered directories');
 		self.__copy = QtGui.QCheckBox('Copy');
@@ -122,6 +127,7 @@ class Organizer(QtGui.QMainWindow, interface.Interface):
 		bottomGrid.addWidget(self.__copy, 1, 2);
 		bottomGrid.addWidget(self.__delete, 2, 0);
 		bottomGrid.addWidget(self.__force, 2, 1);
+		bottomGrid.addWidget(self.__deleteEmpty, 2, 2);
 
 		vbox.addLayout(topGrid);
 		vbox.addLayout(bottomGrid);
@@ -150,8 +156,8 @@ class Organizer(QtGui.QMainWindow, interface.Interface):
 		self.__numDeleted = 0;
 		self.__numUntagged = 0
 		self.__files = [];
+		self.__toRemove = [];
 	
-	# TODO: Remove debug messages
 	# TODO: Fix #1
 	def __startOrganize(self):
 		self.__clean();
@@ -171,19 +177,21 @@ class Organizer(QtGui.QMainWindow, interface.Interface):
 		progress.setAutoReset(False);
 		progress.forceShow();
 		progress.open();
-		progress.setValue(1);
+		progress.setValue(0);
 		queue = deque([self.__path.text()]);
+		# FIXME: Remove still doesn't work :-(
 		try:	
 			while len(queue) != 0:
-				print("Queue: %s" % queue);
 				if progress.wasCanceled():
 					raise KeyboardInterrupt('Canceled');
 				path = queue.popleft();
-				print("Path: %s" % path);
 				try:
 					files = os.listdir(path);
 					if len(files) == 0:
-						utils.verbose('Skipping empty directory %s' % path);
+						if self.__deleteEmpty.isChecked():
+							self.__remove(path);
+						else:
+							utils.verbose('Skipping empty directory %s' % path);
 						continue;
 				except OSError:
 					utils.verbose('Unable to list directory %s' % path);
@@ -197,6 +205,8 @@ class Organizer(QtGui.QMainWindow, interface.Interface):
 						continue;
 					if os.path.isdir(path + f) and self.__recursive.isChecked():
 						queue.append(path + f + utils.DIR_SEPARATOR);
+						if self.__delete.isChecked() and path not in self.__toRemove:
+							self.__toRemove.append(path);
 						continue;
 					if f[-4:].lower() == '.mp3':
 						print('Adding %s' % (path + f));
@@ -211,47 +221,65 @@ class Organizer(QtGui.QMainWindow, interface.Interface):
 		utils.verbose("Got %d files..." % len(self.__files));
 		print(self.__files);
 		progress.setMaximum(len(self.__files));
-		progress.setValue(0);
-		progress.setLabelText("Organizing files...");
+		if len(self.__files) != 0:
+			progress.setValue(0);
+			progress.setLabelText("Organizing files...");
+		else:
+			progress.setValue(progress.maximum);
+			progress.setLabelText("No MP3 files found!");
+			return True;
 		try:
-			prevDir = None;
 			for F in self.__files:
+				print("F: %s" % F);
+				if progress.wasCanceled():
+					raise KeyboardInterrupt();
 				D = os.path.dirname(F);
-				# FIXME 1: Remove fails...
-				if prevDir != None:
-					if D != prevDir and __self.__delete.isChecked() and D != self.__path.text():
-						try:
-							utils.verbose('Removing %s' % D);
-							os.rmdir(D);
-						except Exception as err:
-							utils.verbose('I can\'t remove  %s' % D);
-							try:
-								if self.__force.isChecked():
-									utils.v('Force removing %s' % D);
-									os.rmdirs(D);
-								else:
-									raise Exception();
-							except:
-								print('[W] Unable to remove directory %s...' % path);
-						self.__numDeleted += 1;
 				tag = utils.getTag(F);
 				if not tag:
 					self.__numUntagged += 1;
 					tag = utils.getDefaultTag(F);
+				# FIXME: Copy mode duplicate files
 				if utils.moveTrack(F, tag, self.__target.text(), self.__scheme.text(), self.__copy.isChecked()):
 					self.__numOk += 1;
 				else:
 					self.__numSkipped += 1;
 
 				progress.setValue(progress.value() + 1);
-				# TODO: Change label...
-				progress.setLabelText('%s: %d; Skipped: %s; Removed: %d; Untagged: %d' % (('Copied' if self.__copy.isChecked() else 'Moved'), self.__numOk, self.__numSkipped, self.__numDeleted, self.__numUntagged));
+				# TODO: Justify?
+				progress.setLabelText('%s: %d\n Skipped: %s\n Removed: %d\n Untagged: %d' % (('Copied' if self.__copy.isChecked() else 'Moved'), self.__numOk, self.__numSkipped, self.__numDeleted, self.__numUntagged));
+			try:
+				while True:
+					R = self.__toRemove.pop();
+					print("Removing %s" % R);
+					self.__remove(R);
+			except IndexError:
+				pass;
 		except KeyboardInterrupt:
 			self.__summary();
 			return False;
 		progress.setCancelButtonText('Ok');
 		self.__summary();
 		return True;
+
+	# TODO: Rewrite this shit
+	def __remove(self, path):
+		try:
+			utils.verbose('Removing %s' % path);
+			os.rmdir(path);
+			return True;
+		except Exception:
+			utils.verbose('I can\'t remove  %s' % path);
+			try:
+				if self.__force.isChecked():
+					utils.v('Force removing %s' % path);
+					os.rmdirs(path);
+					self.__numDeleted += 1;
+					return True;
+				else:
+					raise Exception();
+			except:
+				print('[W] Unable to remove directory %s...' % path);
+		return False;
 
 	def __summary(self):
 		pass;
