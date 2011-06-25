@@ -32,6 +32,7 @@ class Organizer(QtGui.QMainWindow, interface.Interface):
 	__numOk = 0;
 	__numSkipped = 0;
 	__numDeleted = 0;
+	__numLeft = 0
 	__toRemove = [];
 	__numUntagged = 0
 	__files = [];
@@ -153,6 +154,7 @@ class Organizer(QtGui.QMainWindow, interface.Interface):
 	def __clean(self):
 		self.__numOk = 0;
 		self.__numSkipped = 0;
+		self.__numLeft = 0
 		self.__numDeleted = 0;
 		self.__numUntagged = 0
 		self.__files = [];
@@ -219,9 +221,10 @@ class Organizer(QtGui.QMainWindow, interface.Interface):
 		except KeyboardInterrupt:
 			return False;
 		utils.verbose("Got %d files..." % len(self.__files));
+		self.__numLeft = len(self.__files);
 		print(self.__files);
-		progress.setMaximum(len(self.__files));
-		if len(self.__files) != 0:
+		progress.setMaximum(self.__numLeft);
+		if self.__numLeft != 0:
 			progress.setValue(0);
 			progress.setLabelText("Organizing files...");
 		else:
@@ -243,10 +246,15 @@ class Organizer(QtGui.QMainWindow, interface.Interface):
 					self.__numOk += 1;
 				else:
 					self.__numSkipped += 1;
+				self.__numLeft -= 1;
 
 				progress.setValue(progress.value() + 1);
 				# TODO: Justify?
-				progress.setLabelText('%s: %d\n Skipped: %s\n Removed: %d\n Untagged: %d' % (('Copied' if self.__copy.isChecked() else 'Moved'), self.__numOk, self.__numSkipped, self.__numDeleted, self.__numUntagged));
+				info = (('Total', len(self.__files)), ('Left', self.__numLeft), ('Copied' if self.__copy.isChecked() else 'Moved', self.__numOk), ('Skipped', self.__numSkipped), ('Removed', self.__numDeleted), ('Untagged', self.__numUntagged));
+				label = '';
+				for pair in info:
+					label += '%s: <b>%d</b>\n' % (pair[0], pair[1]);
+				progress.setLabelText(label);
 			try:
 				while True:
 					R = self.__toRemove.pop();
