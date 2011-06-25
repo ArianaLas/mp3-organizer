@@ -13,6 +13,8 @@ import os;
 # Global variables
 ENABLE_VERBOSE = False;
 DIR_SEPARATOR = '/'
+BAD_CHARS = '!@#?+=\'"[]|`$%^&*<>/\\{};~'
+REPLACE_WITH = '';
 
 def init():
 	"""
@@ -85,7 +87,20 @@ def getDefaultTag(track):
 	'track':'XX',
 	'old-file-name':oldName[0:oldName.rfind('.')]};
 
-# TODO: tags needs normalize (strip/replace special chars);
+def normalizeTags(tags):
+	"""
+	Characters in tags which need to be replaced are in global variable BAD_CHARS
+	Characters with which you want replace BAD_CHARS are in global variable REPLACE_WITH
+	"""
+	global BAD_CHARS;
+	global REPLACE_WITH;
+	for tag in tags:
+		for b in BAD_CHARS:
+			tags[tag] = tags[tag].replace(b, REPLACE_WITH);
+		if not tags[tag]:
+			tags[tag] = 'empty';
+	return tags;
+
 def moveTrack(track, tags, target, scheme, copy=False):
 	"""
 	Move track to target using scheme
