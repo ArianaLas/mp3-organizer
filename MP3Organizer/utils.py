@@ -96,7 +96,7 @@ def normalizeTags(tags):
 	global REPLACE_WITH;
 	for tag in tags:
 		for b in BAD_CHARS:
-			tags[tag] = tags[tag].replace(b, REPLACE_WITH);
+			tags[tag] = str(tags[tag]).replace(b, REPLACE_WITH);
 		if not tags[tag]:
 			tags[tag] = 'empty';
 	return tags;
@@ -114,6 +114,7 @@ def moveTrack(track, tags, target, scheme, copy=False):
 	i = 1;
 	ext = output[output.rfind('.'):];
 	name = os.path.basename(output[0:output.rfind('.')]);
+	print('[T] %s\n[O] %s' % (track, output));
 	if track != output:
 		while os.path.exists(output):
 			output = outputDir + DIR_SEPARATOR + name + '-' + str(i) + ext;

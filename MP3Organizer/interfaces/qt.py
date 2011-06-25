@@ -21,6 +21,7 @@ class Organizer(QtGui.QMainWindow, interface.Interface):
 	__menuBar = None;
 	__path = None;
 	__target = None;
+	__badCharacters = None;
 	__recursive = None;
 	__copy = None;
 	__delete = None;
@@ -29,6 +30,7 @@ class Organizer(QtGui.QMainWindow, interface.Interface):
 	__force = None;
 	__scheme = None;
 	__recognizeCovers = None;
+	__normalizeTags = None;
 	__numOk = 0;
 	__numSkipped = 0;
 	__numDeleted = 0;
@@ -36,6 +38,10 @@ class Organizer(QtGui.QMainWindow, interface.Interface):
 	__toRemove = [];
 	__numUntagged = 0
 	__files = [];
+	__progress = None;
+	__duplicates = None;
+	__dStrategy = None;
+	__dAction = None;
 
 	def __init__(self, args):
 		self.__app = QtGui.QApplication(args);
@@ -90,14 +96,23 @@ class Organizer(QtGui.QMainWindow, interface.Interface):
 		self.__scheme.setToolTip('Available blocks: {artist} {album} {date} {title} {old-file-name} {genre} {track}');
 		self.__scheme.setStatusTip('Available blocks: {artist} {album} {date} {title} {old-file-name} {genre} {track}');
 		self.__setDefaultScheme();
+		self.__badCharacters = QtGui.QLineEdit();
+		self.__badCharacters.setToolTip('This characters is used if "Normalize tags" is checked.');
+		self.__badCharacters.setStatusTip('This characters is used if "Normalize tags" is checked.');
+		self.__setDefaultBadCharacters();
+		self.__replace = QtGui.QLineEdit();
+		self.__replace.setToolTip('Replacement for any character from "Bad characters". Leave empty if you want to remove all bad characters.');
+		self.__replace.setStatusTip('Replacement for any character from "Bad characters". Leave empty if you want to remove all bad characters.');
 		b1 = QtGui.QPushButton('Browse');
 		b1.setStatusTip('Select search directory');
 		b2 = QtGui.QPushButton('Browse');
 		b2.setStatusTip('Select target directory');
 		b3 = QtGui.QPushButton('Set default');
+		b4 = QtGui.QPushButton('Set default');
 		self.connect(b1, QtCore.SIGNAL('clicked()'), self.__browsePath);
 		self.connect(b2, QtCore.SIGNAL('clicked()'), self.__browseTarget);
 		self.connect(b3, QtCore.SIGNAL('clicked()'), self.__setDefaultScheme);
+		self.connect(b4, QtCore.SIGNAL('clicked()'), self.__setDefaultBadCharacters);
 
 		self.__recursive = QtGui.QCheckBox('Recursive mode');	
 		self.__recursive.setStatusTip('Enable recursive mode');
@@ -111,17 +126,27 @@ class Organizer(QtGui.QMainWindow, interface.Interface):
 		self.__copy.setStatusTip('Copy files instead of move');
 		self.__follow = QtGui.QCheckBox('Follow symlinks');
 		self.__follow.setStatusTip('Follow symlinks/links/shortcuts');
+		self.__normalizeTags = QtGui.QCheckBox('Normalize tags');
+		self.__normalizeTags.setStatusTip('Remove specified bad characters from tags (~,/,@,# etc.)');
+		self.__recognizeCovers = QtGui.QCheckBox('Recognize covers');
+		self.__recognizeCovers.setStatusTip('[NOT IMPLEMENTED YET] Try to recognize covers');
+		self.__recognizeCovers.setDisabled(True);
 
 		topGrid.setSpacing(10);
-		topGrid.addWidget(QtGui.QLabel('Search path:'), 1, 0);
+		topGrid.addWidget(QtGui.QLabel('Search path:'), 1, 0, QtCore.Qt.AlignRight);
 		topGrid.addWidget(self.__path, 1, 1);
 		topGrid.addWidget(b1, 1, 2);
-		topGrid.addWidget(QtGui.QLabel('Target path:'), 2, 0);
+		topGrid.addWidget(QtGui.QLabel('Target path:'), 2, 0, QtCore.Qt.AlignRight);
 		topGrid.addWidget(self.__target, 2, 1);
 		topGrid.addWidget(b2, 2, 2);
-		topGrid.addWidget(QtGui.QLabel('Scheme:'), 3, 0);
+		topGrid.addWidget(QtGui.QLabel('Scheme:'), 3, 0, QtCore.Qt.AlignRight);
 		topGrid.addWidget(self.__scheme, 3, 1);
 		topGrid.addWidget(b3, 3, 2);
+		topGrid.addWidget(QtGui.QLabel('Bad characters:'), 4, 0, QtCore.Qt.AlignRight);
+		topGrid.addWidget(self.__badCharacters, 4, 1);
+		topGrid.addWidget(b4, 4, 2);
+		topGrid.addWidget(QtGui.QLabel('Replacement: '), 5, 0, QtCore.Qt.AlignRight);
+		topGrid.addWidget(self.__replace, 5, 1);
 
 		bottomGrid.addWidget(self.__recursive, 1, 0);
 		bottomGrid.addWidget(self.__follow, 1, 1);
@@ -129,9 +154,39 @@ class Organizer(QtGui.QMainWindow, interface.Interface):
 		bottomGrid.addWidget(self.__delete, 2, 0);
 		bottomGrid.addWidget(self.__force, 2, 1);
 		bottomGrid.addWidget(self.__deleteEmpty, 2, 2);
+		bottomGrid.addWidget(self.__normalizeTags, 3, 0);
+		bottomGrid.addWidget(self.__recognizeCovers, 3, 1);
 
-		vbox.addLayout(topGrid);
-		vbox.addLayout(bottomGrid);
+		duplicatesGrid = QtGui.QGridLayout();
+
+		self.__dStrategy = QtGui.QComboBox();
+		self.__dStrategy.addItem('MD5');
+		self.__dStrategy.addItem('SHA1');
+		self.__dStrategy.addItem('File name');
+
+		self.__dAction = QtGui.QComboBox();
+		self.__dAction.addItem('Remove');
+		self.__dAction.addItem('Separate');
+		self.__dAction.addItem('Leave');
+
+		duplicatesGrid.addWidget(QtGui.QLabel('Strategy:'), 1, 0, QtCore.Qt.AlignRight);	
+		duplicatesGrid.addWidget(self.__dStrategy, 1, 1);
+		duplicatesGrid.addWidget(QtGui.QLabel('Action:'), 2, 0, QtCore.Qt.AlignRight);
+		duplicatesGrid.addWidget(self.__dAction, 2, 1);
+		duplicatesGrid.setColumnStretch(1, 2);
+
+		self.__duplicates = QtGui.QGroupBox('Detect duplicates');
+		self.__duplicates.setLayout(duplicatesGrid);
+		self.__duplicates.setStatusTip('[NOT IMPLEMENTED YET]');
+		self.__duplicates.setDisabled(True);
+
+		topGroup = QtGui.QGroupBox('Main settings');
+		bottomGroup = QtGui.QGroupBox('Options');
+		topGroup.setLayout(topGrid);
+		bottomGroup.setLayout(bottomGrid);
+		vbox.addWidget(topGroup);
+		vbox.addWidget(bottomGroup);
+		vbox.addWidget(self.__duplicates);
 		container.setLayout(vbox);
 		self.setCentralWidget(container);
 		
@@ -142,6 +197,9 @@ class Organizer(QtGui.QMainWindow, interface.Interface):
 	
 	def __setDefaultScheme(self):
 		self.__scheme.setText('{artist}{0}{album}{0}{title}'.replace('{0}', utils.DIR_SEPARATOR));
+	
+	def __setDefaultBadCharacters(self):
+		self.__badCharacters.setText(utils.BAD_CHARS);
 
 	def __browsePath(self):
 		path = self.__chooseDir('Select search directory');
@@ -160,8 +218,10 @@ class Organizer(QtGui.QMainWindow, interface.Interface):
 		self.__files = [];
 		self.__toRemove = [];
 	
-	# TODO: Fix #1
 	def __startOrganize(self):
+		if self.__progress != None:
+			self.__critical('Another hardcore organizing action is running now!');
+			return False;
 		self.__clean();
 		try:
 			utils.prepare(self.__path.text(), self.__target.text());
@@ -173,18 +233,17 @@ class Organizer(QtGui.QMainWindow, interface.Interface):
 			self.__critical(str(e));
 			return False;
 		utils.verbose('Staring hardcore organizing action!');
-		progress = QtGui.QProgressDialog('Initializing...', 'Cancel', 0, 100, self);
-		progress.setMinimumDuration(1);
-		progress.setAutoClose(False);
-		progress.setAutoReset(False);
-		progress.forceShow();
-		progress.open();
-		progress.setValue(0);
+		self.__progress = QtGui.QProgressDialog('Initializing...', 'Cancel', 0, 100, self);
+		self.__progress.setMinimumDuration(1);
+		self.__progress.setAutoClose(False);
+		self.__progress.setAutoReset(False);
+		self.__progress.forceShow();
+		self.__progress.open();
+		self.__progress.setValue(0);
 		queue = deque([self.__path.text()]);
-		# FIXME: Remove still doesn't work :-(
 		try:	
 			while len(queue) != 0:
-				if progress.wasCanceled():
+				if self.__progress.wasCanceled():
 					raise KeyboardInterrupt('Canceled');
 				path = queue.popleft();
 				try:
@@ -200,7 +259,7 @@ class Organizer(QtGui.QMainWindow, interface.Interface):
 					continue;
 				lastTag = None;
 				for f in files:
-					if progress.wasCanceled():
+					if self.__progress.wasCanceled():
 						raise KeyboardInterrupt('Canceled');
 					if os.path.islink(path + f) and not self.__follow.isChecked():
 						utils.verbose('Skipping link %s...' % (path + f))
@@ -211,76 +270,87 @@ class Organizer(QtGui.QMainWindow, interface.Interface):
 							self.__toRemove.append(path);
 						continue;
 					if f[-4:].lower() == '.mp3':
-						print('Adding %s' % (path + f));
+						print('[I] Adding %s' % (path + f));
+						if self.__delete.isChecked() and path not in self.__toRemove:
+							self.__toRemove.append(path);
 						self.__files.append(path + f);
-						progress.setLabelText('Preparing files (%d)' % len(self.__files));
-						newMax = 0.9 if random.choice((0,1,2)) == 1 else 0.7;
-						if len(self.__files) > progress.maximum() * newMax:
-							progress.setMaximum(int(len(self.__files)) * 2);
-						progress.setValue(len(self.__files));
+						self.__progress.setLabelText('Preparing files (%d)' % len(self.__files));
+						newMax = 0.9 if random.choice((0, 1, 2)) == 1 else 0.7;
+						if len(self.__files) > self.__progress.maximum() * newMax:
+							self.__progress.setMaximum(int(len(self.__files)) * 2);
+						self.__progress.setValue(len(self.__files));
 		except KeyboardInterrupt:
 			return False;
 		utils.verbose("Got %d files..." % len(self.__files));
 		self.__numLeft = len(self.__files);
-		print(self.__files);
-		progress.setMaximum(self.__numLeft);
+		self.__progress.setMaximum(self.__numLeft);
 		if self.__numLeft != 0:
-			progress.setValue(0);
-			progress.setLabelText("Organizing files...");
+			self.__progress.setValue(0);
+			self.__progress.setLabelText("Organizing files...");
 		else:
-			progress.setValue(progress.maximum);
-			progress.setLabelText("No MP3 files found!");
+			self.__progress.setValue(self.__progress.maximum);
+			self.__progress.setLabelText("No MP3 files found!");
 			return True;
 		try:
 			for F in self.__files:
-				print("F: %s" % F);
-				if progress.wasCanceled():
+				if self.__progress.wasCanceled():
 					raise KeyboardInterrupt();
 				D = os.path.dirname(F);
 				tag = utils.getTag(F);
 				if not tag:
 					self.__numUntagged += 1;
 					tag = utils.getDefaultTag(F);
-				# FIXME: Copy mode duplicate files
+				print(tag);
+				if self.__normalizeTags.isChecked():
+					utils.BAD_CHARS = self.__badCharacters.text();
+					utils.REPLACE_WITH = self.__replace.text();
+					tag = utils.normalizeTags(tag);
 				if utils.moveTrack(F, tag, self.__target.text(), self.__scheme.text(), self.__copy.isChecked()):
 					self.__numOk += 1;
 				else:
 					self.__numSkipped += 1;
 				self.__numLeft -= 1;
 
-				progress.setValue(progress.value() + 1);
-				# TODO: Justify?
-				info = (('Total', len(self.__files)), ('Left', self.__numLeft), ('Copied' if self.__copy.isChecked() else 'Moved', self.__numOk), ('Skipped', self.__numSkipped), ('Removed', self.__numDeleted), ('Untagged', self.__numUntagged));
-				label = '';
-				for pair in info:
-					label += '%s: <b>%d</b>\n' % (pair[0], pair[1]);
-				progress.setLabelText(label);
+				self.__progress.setValue(self.__progress.value() + 1);
+				self.__updateProgressLabel();
 			try:
+				print(self.__toRemove);
 				while True:
 					R = self.__toRemove.pop();
-					print("Removing %s" % R);
 					self.__remove(R);
+					self.__updateProgressLabel();
 			except IndexError:
 				pass;
 		except KeyboardInterrupt:
-			self.__summary();
 			return False;
-		progress.setCancelButtonText('Ok');
-		self.__summary();
+		self.__progress.setCancelButtonText('Ok');
+		self.__progress = None;
 		return True;
 
-	# TODO: Rewrite this shit
+	def __updateProgressLabel(self, label = None):
+		if not label:
+			info = (('Total', len(self.__files)), ('Left', self.__numLeft), ('Copied' if self.__copy.isChecked() else 'Moved', self.__numOk), ('Skipped', self.__numSkipped), ('Removed', self.__numDeleted), ('Untagged', self.__numUntagged));
+			label = '';
+			for pair in info:
+				label += '<p align="left">%s: <b>%d</b></p>' % (pair[0], pair[1]);
+		self.__progress.setLabelText(label);
+
 	def __remove(self, path):
 		try:
 			utils.verbose('Removing %s' % path);
 			os.rmdir(path);
+			self.__numDeleted += 1;
 			return True;
 		except Exception:
 			utils.verbose('I can\'t remove  %s' % path);
 			try:
 				if self.__force.isChecked():
-					utils.v('Force removing %s' % path);
-					os.rmdirs(path);
+					print("Force remove...");
+					if self.__path.text() == self.__target.text() and path == self.__path:
+						print("[W] Remove: skipping %s" % path);
+						return False;
+					utils.verbose('Force removing %s' % path);
+					os.removedirs(path);
 					self.__numDeleted += 1;
 					return True;
 				else:
@@ -288,9 +358,6 @@ class Organizer(QtGui.QMainWindow, interface.Interface):
 			except:
 				print('[W] Unable to remove directory %s...' % path);
 		return False;
-
-	def __summary(self):
-		pass;
 
 	def __critical(self, msg):
 		QtGui.QMessageBox.critical(self, 'MP3 Organizer :: Critical error', msg, QtGui.QMessageBox.Ok);
