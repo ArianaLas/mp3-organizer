@@ -45,19 +45,19 @@ class Organizer(QtGui.QMainWindow, interface.Interface):
 		self.show();
 		sys.exit(self.__app.exec_());
 
-	# TODO: Add icons...
 	def __initUI(self):
 		utils.verbose('Initializing UI...');
 		self.setWindowTitle('MP3 Organizer');
 		self.resize(500, 300);
+		self.setWindowIcon(QtGui.QIcon('./data/icons/icon.png'));
 		self.__statusBar = self.statusBar();
 		self.__menuBar = self.menuBar();
 
 		# Toolbar
-		start = QtGui.QAction(QtGui.QIcon(), 'Start', self);
+		start = QtGui.QAction(QtGui.QIcon('./data/icons/start.png'), 'Start', self);
 		start.setStatusTip('Start organize');
 		self.connect(start, QtCore.SIGNAL('triggered()'), self.__startOrganize);
-		exit = QtGui.QAction(QtGui.QIcon(), 'Exit', self);
+		exit = QtGui.QAction(QtGui.QIcon('./data/icons/exit.png'), 'Exit', self);
 		exit.setStatusTip('Exit MP3 Organizer');
 		self.connect(exit, QtCore.SIGNAL('triggered()'), QtCore.SLOT('close()'));
 		toolbar = self.addToolBar('Start');
@@ -70,7 +70,7 @@ class Organizer(QtGui.QMainWindow, interface.Interface):
 		tmp.addAction(start);
 		tmp.addAction(exit);
 		tmp = self.__menuBar.addMenu('&Help');
-		about = QtGui.QAction(QtGui.QIcon(), 'About', self);
+		about = QtGui.QAction(QtGui.QIcon('./data/icons/about.png'), 'About', self);
 		about.connect(about, QtCore.SIGNAL('triggered()'), self.__about);
 		tmp.addAction(about);
 
